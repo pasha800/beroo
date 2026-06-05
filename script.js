@@ -138,6 +138,14 @@ let lastFocusedElement = null;
 let audioContext = null;
 const SAVED_BUILD_KEY = "beroo-saved-build";
 
+const soundFiles = {
+  warm: "assets/sounds/warm-deep.mp3",
+  muted: "assets/sounds/soft-muted.mp3",
+  clack: "assets/sounds/clean-clack.mp3"
+};
+
+let activeSound = null;
+
 function saveConfiguration() {
   const values = getFormValues();
   localStorage.setItem(SAVED_BUILD_KEY, JSON.stringify(values));
@@ -745,25 +753,38 @@ function scheduleKeyClick(startTime, options) {
 }
 
 async function playSoundProfile(profile, activeButton) {
-  const settings = {
-    warm: { frequency: 155, noiseFrequency: 520, toneGain: 0.12, noiseGain: 0.14, decay: 0.105, q: 0.9, gap: 0.13 },
-    muted: { frequency: 120, noiseFrequency: 360, toneGain: 0.08, noiseGain: 0.08, decay: 0.075, q: 0.7, gap: 0.12 },
-    clack: { frequency: 260, noiseFrequency: 1650, toneGain: 0.08, noiseGain: 0.18, decay: 0.055, q: 1.3, gap: 0.105 }
-  };
-  const options = settings[profile] || settings.warm;
+  const src = soundFiles[profile];
+  if (!src) return;
 
-  audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
-  if (audioContext.state === "suspended") await audioContext.resume();
+  document.querySelectorAll(".sound-card").forEach((button) => {
+    button.classList.remove("playing");
+  });
 
-  document.querySelectorAll(".sound-card").forEach((button) => button.classList.remove("playing"));
-  activeButton?.classList.add("playing");
-
-  const start = audioContext.currentTime + 0.04;
-  for (let i = 0; i < 7; i += 1) {
-    scheduleKeyClick(start + i * options.gap, options);
+  if (activeSound) {
+    activeSound.pause();
+    activeSound.currentTime = 0;
   }
 
-  window.setTimeout(() => activeButton?.classList.remove("playing"), 1200);
+  activeSound = new Audio(src);
+  activeSound.preload = "auto";
+  activeSound.volume = 0.82;
+
+  activeButton?.classList.add("playing");
+
+  try {
+    await activeSound.play();
+  } catch {
+    activeButton?.classList.remove("playing");
+    return;
+  }
+
+  activeSound.addEventListener(
+    "ended",
+    () => {
+      activeButton?.classList.remove("playing");
+    },
+    { once: true }
+  );
 }
 
 function updatePatinaSlider() {
